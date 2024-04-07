@@ -37,8 +37,10 @@ JSON Parser::from_text(const std::string& text, std::vector<std::string>* errors
 	it.offset = 0;
 
 	auto element = p.parse_json_value(it);
+	it.skip_wspace();
+
 	if (it.offset != it.data.size() && p.m_Errors.size() == 0)
-	{
+	{	
 		p.build_error(Parser::LeftoverCharactersInData, it);
 		delete element;
 		element = nullptr;
@@ -86,7 +88,7 @@ JSON Parser::from_file(const std::string& path, std::vector<std::string>* errors
 	file.close();
 
 	auto element = p.parse_json_value(it);
-
+	it.skip_wspace();
 	if (it.offset != it.data.size() && p.m_Errors.size() == 0)
 	{
 		p.build_error(Parser::LeftoverCharactersInData, it);
@@ -120,8 +122,7 @@ void Parser::clear_errors()
 }
 
 Element* Parser::parse_json_value(DataIterator& it) {
-	bool no_errors = true;
-	while (it.is_valid() && no_errors)
+	while (it.is_valid())
 	{
 		it.skip_wspace();
 		switch (it.peek())
@@ -173,18 +174,18 @@ Element* Parser::parse_json_value(DataIterator& it) {
 				it.offset += 4;
 				return json::LiteralValue::create_null_value();
 			}
-			no_errors = false;
 			build_error(ErrType::ExpectedNull, it);
+			it.offset = it.data.size();
 			break;
 		}
 		default:
-			no_errors = false;
 			build_error(Parser::UnexpectedCharacterInFile, it);
+			it.offset = it.data.size();
 			break;
 		}
 	}
 
-	if (no_errors)
+	if (it.offset == it.data.size() && m_Errors.size() == 0)
 	{
 		build_error(Parser::UnexpectedEOF, it);
 	}
@@ -225,7 +226,7 @@ Element* Parser::parse_json_array(DataIterator& it)
 		if (it.peek() == ']') {
 			build_error(Parser::UnexpectedComma, it);
 			return nullptr;
-		}	
+		}
 	}
 
 	it.skip_wspace();
