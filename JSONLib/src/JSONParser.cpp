@@ -130,7 +130,6 @@ Element* Parser::parse_json_value(DataIterator& it) {
 		{
 			// Parse array
 			return parse_json_array(it);
-			break;
 		}
 		case '{':
 		{
@@ -200,11 +199,9 @@ Element* Parser::parse_json_array(DataIterator& it)
 		build_error(Parser::ExpectedStartOfArray, it);
 		return nullptr;
 	}
+
 	it.read1();
 	std::unique_ptr<Array> result = std::make_unique<Array>();
-
-	bool has_read_comma = false;
-	int last_comma_index = -1;
 	while (it.is_valid() && it.peek() != ']')
 	{
 		it.skip_wspace();
@@ -214,24 +211,21 @@ Element* Parser::parse_json_array(DataIterator& it)
 			return nullptr;
 		}
 
-		has_read_comma = false;
 		result->push_back(val);
 
 		it.skip_wspace();
 		if (it.peek() != ',')
 			break;
 
-		last_comma_index = it.offset;
-		has_read_comma = true;
 		it.read1();
-		it.skip_wspace();
-	}
 
-	if (has_read_comma)
-	{
-		it.offset = last_comma_index;
-		build_error(Parser::UnexpectedComma, it);
-		return nullptr;
+		int last_comma_index = it.offset;
+		it.skip_wspace();
+
+		if (it.peek() == ']') {
+			build_error(Parser::UnexpectedComma, it);
+			return nullptr;
+		}	
 	}
 
 	it.skip_wspace();
