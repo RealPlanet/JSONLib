@@ -1,0 +1,48 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="src\JSON.cpp">
+      <Filter>JSON</Filter>
+    </ClCompile>
+    <ClCompile Include="src\JSONArray.cpp">
+      <Filter>JSON\Data</Filter>
+    </ClCompile>
+    <ClCompile Include="src\JSONObject.cpp">
+      <Filter>JSON\Data</Filter>
+    </ClCompile>
+    <ClCompile Include="src\JSONValue.cpp">
+      <Filter>JSON\Data</Filter>
+    </ClCompile>
+    <ClCompile Include="src\JSONParser.cpp">
+      <Filter>JSON</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\JSON.h">
+      <Filter>JSON</Filter>
+    </ClInclude>
+    <ClInclude Include="src\JSONArray.h">
+      <Filter>JSON\Data</Filter>
+    </ClInclude>
+    <ClInclude Include="src\JSONObject.h">
+      <Filter>JSON\Data</Filter>
+    </ClInclude>
+    <ClInclude Include="src\JSONValue.h">
+      <Filter>JSON\Data</Filter>
+    </ClInclude>
+    <ClInclude Include="src\JSONUtility.h">
+      <Filter>JSON\Data</Filter>
+    </ClInclude>
+    <ClInclude Include="src\JSONParser.h">
+      <Filter>JSON</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="JSON">
+      <UniqueIdentifier>{fc7eb30c-8624-4757-b310-f2d70974b612}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="JSON\Data">
+      <UniqueIdentifier>{83518a31-2518-496d-81fe-5a68a5383b83}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
