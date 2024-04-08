@@ -121,7 +121,8 @@ void Parser::clear_errors()
 	m_Errors.clear();
 }
 
-Element* Parser::parse_json_value(DataIterator& it) {
+Element* Parser::parse_json_value(DataIterator& it)
+{
 	while (it.is_valid())
 	{
 		it.skip_wspace();
@@ -336,14 +337,14 @@ Element* Parser::parse_number(DataIterator& it)
 
 		bool isDigit = isdigit(c);
 
-		if (!isDigit && c != '-' && c != '.')
+		if (!isDigit && c != '-' && c != '.' && c != 'e')
 		{
 			break;
 		}
 
 		it.read1();
 		number += c;
-		isFractional = isFractional || c == '.';
+		isFractional = isFractional || c == '.' || c == 'e';
 	}
 
 	Parser::ErrType error = is_valid_json_number(number);
@@ -369,12 +370,19 @@ Parser::ErrType json::Parser::is_valid_json_number(const std::string& value)
 
 	if (strLen == 1)
 	{
-		// Number cannot contain only these characters
-		if (value[0] == '.' || value[0] == '-')
+		// Number can only contain these characters but not start with these
+		if (value[0] == '.' || value[0] == '-' || value[0] == 'e')
 		{
 			return Parser::ErrType::NotANumber;
 		}
 	}
+
+	char lastChar = value[value.size() - 1];
+	if(lastChar == 'e')
+		return Parser::ErrType::NumberCannotEndWithExponentialCharacter;
+
+	if (lastChar == '-')
+		return Parser::ErrType::NumberCannotEndWithMinus;
 
 	if (value[strLen - 1] == '.')
 		return Parser::ErrType::NumberCannotEndWithDecimalSeparator;
@@ -394,6 +402,11 @@ Parser::ErrType json::Parser::is_valid_json_number(const std::string& value)
 	if (utility::contains_multiple(value, '.'))
 	{
 		return Parser::ErrType::MultipleDecimalSeparators;
+	}
+
+	if (utility::contains_multiple(value, '.'))
+	{
+		return Parser::ErrType::MultipleExponentialSymbols;
 	}
 
 	return Parser::ErrType::NoError;
@@ -655,6 +668,12 @@ std::string json::Parser::get_err_template(ErrType type)
 		return "Number at '%d' starts with 0, leading 0s are not allowed:\n";
 	case ErrType::MultipleDecimalSeparators:
 		return "Number contains multiple decimal separators '.', first occurence at '%d':\n";
+	case ErrType::MultipleExponentialSymbols:
+		return "Number contains multiple exponential symbols 'e', first occurence at '%d':\n";
+	case ErrType::NumberCannotEndWithMinus:
+		return "Number cannot end with '-', error at '%d':\n";
+	case ErrType::NumberCannotEndWithExponentialCharacter:
+		return "Number cannot end with 'e', error at '%d':\n";
 	case ErrType::NumberCannotEndWithDecimalSeparator:
 		return "Number ends with decimal separator '.' at '%d':\n";
 	case ErrType::NumberHasNoRealPart:

@@ -39,7 +39,10 @@ namespace json {
 			NotANumber,
 			NumberCannotStartWithZero,
 			MultipleDecimalSeparators,
+			MultipleExponentialSymbols,
 			NumberCannotEndWithDecimalSeparator,
+			NumberCannotEndWithExponentialCharacter,
+			NumberCannotEndWithMinus,
 			NumberHasNoRealPart,
 
 			NoError,
