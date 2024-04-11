@@ -40,7 +40,7 @@ JSON Parser::from_text(const std::string& text, std::vector<std::string>* errors
 	it.skip_wspace();
 
 	if (it.offset != it.data.size() && p.m_Errors.size() == 0)
-	{	
+	{
 		p.build_error(Parser::LeftoverCharactersInData, it);
 		delete element;
 		element = nullptr;
@@ -221,7 +221,7 @@ Element* Parser::parse_json_array(DataIterator& it)
 
 		it.read1();
 
-		int last_comma_index = it.offset;
+		size_t last_comma_index = it.offset;
 		it.skip_wspace();
 
 		if (it.peek() == ']') {
@@ -254,7 +254,7 @@ Element* Parser::parse_json_object(DataIterator& it)
 
 	std::unique_ptr<Object> result = std::make_unique<Object>();
 	bool has_read_comma = false;
-	int last_comma_index = -1;
+	size_t last_comma_index = -1;
 	while (it.is_valid() && it.peek() != '}')
 	{
 		it.skip_wspace();
@@ -322,49 +322,94 @@ Element* Parser::parse_boolean(DataIterator& it)
 }
 Element* Parser::parse_number(DataIterator& it)
 {
-	std::string number = "";
-
-	bool isFractional = false;
 	it.skip_wspace();
-	while (it.is_valid()) {
-		char c = it.peek();
 
-		if (c < 0)
+	std::string number = "";
+	bool isFractional = false;
+
+	char firstChar = it.peek();
+	if (!utility::isdigit(firstChar)) {
+		if (firstChar != '-')
 		{
-			build_error(Parser::ErrType::UnexpectedCharacterInNumber, it);
+			build_error(Parser::ErrType::NotANumber, it);
 			return nullptr;
 		}
 
-		bool isDigit = isdigit(c);
+		number += it.read1();
 
-		if (!isDigit && c != '-' && c != '.' && c != 'e')
-		{
-			break;
+		if (!utility::isdigit(it.peek())) {
+			build_error(Parser::ErrType::NotANumber, it);
+			return nullptr;
 		}
-
-		it.read1();
-		number += c;
-		isFractional = isFractional || c == '.' || c == 'e';
 	}
 
-	Parser::ErrType error = is_valid_json_number(number);
+	while (utility::isdigit(it.peek())) {
+		number += it.read1();
+	}
 
+	// Number has fractionalpart
+	if (it.peek() == '.')
+	{
+		isFractional = true;
+		number += it.read1();
+		if (!utility::isdigit(it.peek())) {
+			build_error(Parser::ErrType::NumberCannotEndWithDecimalSeparator, it);
+			return nullptr;
+		}
+
+		while (utility::isdigit(it.peek())) {
+			number += it.read1();
+		}
+	}
+
+	// Number has exponent part
+	if (it.peek() == 'e' || it.peek() == 'E')
+	{
+		number += it.read1();
+		firstChar = it.peek();
+		if (!utility::isdigit(firstChar)) {
+
+			if (firstChar != '+' && firstChar != '-') {
+				build_error(Parser::ErrType::NumberCannotEndWithExponentialCharacter, it);
+				return nullptr;
+			}
+
+			number += it.read1();
+
+			if (!utility::isdigit(it.peek())) {
+				build_error(Parser::ErrType::NumberCannotEndWithSign, it);
+				return nullptr;
+			}
+		}
+
+		while (utility::isdigit(it.peek())) {
+			number += it.read1();
+		}
+	}
+
+	auto error = is_valid_json_number(number);
 	if (error != Parser::ErrType::NoError) {
 		build_error(error, it);
 		return nullptr;
 	}
 
-	if (isFractional)
-	{
-		return json::LiteralValue::create_number_value(std::stod(number));
-	}
+	try {
+		if (isFractional)
+		{
+			return json::LiteralValue::create_number_value(std::stod(number));
+		}
 
-	return json::LiteralValue::create_number_value((int64_t)std::stoi(number));
+		return json::LiteralValue::create_number_value((int64_t)std::stoi(number));
+	}
+	catch (std::out_of_range& ex)
+	{
+		return json::LiteralValue::create_number_value((int64_t)0);
+	}
 }
 
 Parser::ErrType json::Parser::is_valid_json_number(const std::string& value)
 {
-	int strLen = value.size();
+	size_t strLen = value.size();
 	if (strLen == 0)
 		return Parser::ErrType::NotANumber;
 
@@ -377,43 +422,26 @@ Parser::ErrType json::Parser::is_valid_json_number(const std::string& value)
 		}
 	}
 
-	char lastChar = value[value.size() - 1];
-	if(lastChar == 'e')
-		return Parser::ErrType::NumberCannotEndWithExponentialCharacter;
-
-	if (lastChar == '-')
-		return Parser::ErrType::NumberCannotEndWithMinus;
-
-	if (value[strLen - 1] == '.')
-		return Parser::ErrType::NumberCannotEndWithDecimalSeparator;
-
-
 	// Value cannot start with a zero
 	int offset = value[0] == '-' ? 1 : 0;
 
 	// If value is zero and there are more characters in the number
 	// then it is an error
-	if (value[offset] == '0' && offset + 1 < value.size())
-		return Parser::ErrType::NumberCannotStartWithZero;
-
-	if (value[offset] == '.')
-		return Parser::ErrType::NumberHasNoRealPart;
-
-	if (utility::contains_multiple(value, '.'))
+	if (value[offset] == '0')
 	{
-		return Parser::ErrType::MultipleDecimalSeparators;
-	}
-
-	if (utility::contains_multiple(value, '.'))
-	{
-		return Parser::ErrType::MultipleExponentialSymbols;
+		if (offset + 1 < value.size())
+		{
+			if (value[offset + 1] != '.' && value[offset + 1] != 'e')
+				return Parser::ErrType::NumberCannotStartWithZero;
+		}
 	}
 
 	return Parser::ErrType::NoError;
 }
 
-std::string Parser::get_escaped_character(DataIterator& it)
+bool Parser::get_escaped_character(DataIterator& it, std::string& escapedCharacters)
 {
+	escapedCharacters = "";
 	it.read1(); // Consume escape char
 	switch (it.peek())
 	{
@@ -444,7 +472,7 @@ std::string Parser::get_escaped_character(DataIterator& it)
 	case 'u':
 	{
 		it.offset++;
-		int startingCodepointPosition = it.offset;
+		size_t startingCodepointPosition = it.offset;
 
 		int i{ 0 };
 		char hex[5]{ 0 };
@@ -453,7 +481,7 @@ std::string Parser::get_escaped_character(DataIterator& it)
 		{
 			if (!add_if_hex(hex, i++, it.peek())) {
 				build_error(json::Parser::ExpectedUTFCharacter, it);
-				return "";
+				return false;
 			}
 
 			it.offset++;
@@ -466,18 +494,22 @@ std::string Parser::get_escaped_character(DataIterator& it)
 		std::mbstate_t state;
 		auto len = std::c32rtomb(hex, c, &state);
 		if (len == std::size_t(-1)) {
+			len = std::c32rtomb(hex, '\uFFFF', &state);
+			if (len == std::size_t(-1)) {
+				throw std::exception("UTF ERROR");
+			}
 			//build_error(json::Parser::CodepointNotRecognized, it, startingCodepointPosition);
-			return std::string(hex);
 		}
 
 		// Null terminate it and send it back up
 		hex[len] = 0;
-		return std::string(hex);
+		escapedCharacters = std::string(hex);
+		return true;
 	}
 	default:
 		build_error(Parser::UnexpectedEscapeCharacter, it);
 	}
-	return "";
+	return false;
 }
 
 int json::Parser::hex2int(char ch)
@@ -499,12 +531,12 @@ bool json::Parser::add_if_hex(char* arr, int index, char c)
 		return false;
 	}
 
-	if (c != 'A' &&
-		c != 'B' &&
-		c != 'C' &&
-		c != 'D' &&
-		c != 'E' &&
-		c != 'F' &&
+	if (c != 'A' && c != 'a' &&
+		c != 'B' && c != 'b' &&
+		c != 'C' && c != 'c' &&
+		c != 'D' && c != 'd' &&
+		c != 'E' && c != 'e' &&
+		c != 'F' && c != 'f' &&
 		!std::isdigit(c))
 	{
 		return false;
@@ -533,10 +565,10 @@ int Parser::parse_string(DataIterator& it, std::string& result)
 
 		if (it.peek() == '\\')
 		{
-			std::string escapedCharacters = get_escaped_character(it);
-			if (escapedCharacters == "")
+			std::string escapedCharacters; 
+			if (!get_escaped_character(it, escapedCharacters)) {
 				return -1;
-
+			}
 			result += escapedCharacters;
 			continue;
 		}
@@ -593,13 +625,10 @@ std::tuple<std::string, Element*> Parser::parse_member(DataIterator& it)
 	return std::make_tuple(memberName, parse_json_value(it));
 }
 
-void Parser::build_error(ErrType type, DataIterator& data, int charIndex)
+void Parser::build_error(ErrType type, DataIterator& data)
 {
 	std::string templ = get_err_template(type);
-
-	if (charIndex < 0)
-		charIndex = data.offset;
-
+	size_t charIndex = data.offset;
 	size_t startIndex = charIndex;
 	size_t endIndex = charIndex;
 
@@ -666,18 +695,20 @@ std::string json::Parser::get_err_template(ErrType type)
 		return "Value is not a valid number at '%d':\n";
 	case ErrType::NumberCannotStartWithZero:
 		return "Number at '%d' starts with 0, leading 0s are not allowed:\n";
+	case ErrType::NumberCannotStartWithExponential:
+		return "Number at '%d' cannot start with exponential symbol:\n";
 	case ErrType::MultipleDecimalSeparators:
 		return "Number contains multiple decimal separators '.', first occurence at '%d':\n";
 	case ErrType::MultipleExponentialSymbols:
 		return "Number contains multiple exponential symbols 'e', first occurence at '%d':\n";
-	case ErrType::NumberCannotEndWithMinus:
-		return "Number cannot end with '-', error at '%d':\n";
+	case ErrType::NumberCannotEndWithSign:
+		return "Number cannot end with '-' or '+', error at '%d':\n";
 	case ErrType::NumberCannotEndWithExponentialCharacter:
 		return "Number cannot end with 'e', error at '%d':\n";
 	case ErrType::NumberCannotEndWithDecimalSeparator:
 		return "Number ends with decimal separator '.' at '%d':\n";
 	case ErrType::NumberHasNoRealPart:
-		return "Number must have a real part, unable to parse number at ''%d'':\n";
+		return "Number must have a real part, unable to parse number at '%d':\n";
 	case ErrType::ExpectedUTFCharacter:
 		return "Character at '%d' is not a HEX digit!\n";
 	case ErrType::UnexpectedEscapeCharacter:

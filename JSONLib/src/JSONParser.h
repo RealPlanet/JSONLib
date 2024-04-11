@@ -38,11 +38,12 @@ namespace json {
 			// Number errors
 			NotANumber,
 			NumberCannotStartWithZero,
+			NumberCannotStartWithExponential,
 			MultipleDecimalSeparators,
 			MultipleExponentialSymbols,
 			NumberCannotEndWithDecimalSeparator,
 			NumberCannotEndWithExponentialCharacter,
-			NumberCannotEndWithMinus,
+			NumberCannotEndWithSign,
 			NumberHasNoRealPart,
 
 			NoError,
@@ -60,7 +61,7 @@ namespace json {
 				return EOF;
 			}
 
-			bool is_valid() { return offset < data.size() && data[offset] != EOF; }
+			bool is_valid() { return peek() != EOF; }
 			void skip_wspace();
 		};
 
@@ -79,9 +80,9 @@ namespace json {
 		int parse_string(DataIterator& it, std::string& result);
 		/// <returns>Tuple: 0 - Member Name; 1 - Json Element Pointer</returns>
 		std::tuple<std::string, Element*> parse_member(DataIterator& it);
-		void build_error(ErrType type, DataIterator& data, int charIndex = -1);
+		void build_error(ErrType type, DataIterator& data);
 		std::string get_err_template(ErrType type);
-		std::string get_escaped_character(DataIterator& it);
+		bool get_escaped_character(DataIterator& it, std::string& escapedCharacters);
 		bool add_if_hex(char*, int, char);
 		int hex2int(char c);
 	public:

@@ -32,16 +32,11 @@ namespace json {
 			return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
 		}
 
-		inline bool contains_multiple(const std::string& src, const char t) {
-			bool hasFoundOne = false;
-			for (const char c : src) {
-				if (c == t && hasFoundOne)
-					return true;
+		inline bool isdigit(const char c) {
+			if (c < 0 || c > 127)
+				return false;
 
-				hasFoundOne |= c == t;
-			}
-
-			return false;
+			return ::isdigit(c);
 		}
 	}
 }

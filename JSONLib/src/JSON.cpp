@@ -12,53 +12,6 @@
 
 
 namespace json {
-	/*
-	char get_escaped_char(std::istream& stream) {
-		//
-		//		escape
-		//		'"'
-		//		'\'
-		//		'/'
-		//		'b'
-		//		'f'
-		//		'n'
-		//		'r'
-		//		't'
-		//		'u' hex hex hex hex ???
-		//
-
-		JSON_PEEK_AND_SKIP(stream, '\\');
-
-		char next;
-		stream.read(&next, 1);
-
-		if (next == 'u') {
-			// Unsupported ?
-			throw json_exception("Unicode characters curretly not supported");
-		}
-
-		switch (next)
-		{
-		case '"':
-		case '\\':
-		case '/':
-			return next;
-		case 'r':
-			return '\r';
-		case 'b':
-			return '\b';
-		case 'n':
-			return '\n';
-		case 'f':
-			return '\f';
-		case 't':
-			return '\t';
-		}
-
-		throw json_exception("Escape character not supported!");
-	}
-	*/
-
 	JSON::JSON(JSON&& m) noexcept
 	{
 		this->m_Root = m.m_Root;
