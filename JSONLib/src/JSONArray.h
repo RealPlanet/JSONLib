@@ -8,7 +8,7 @@ namespace json {
 	{
 		friend class JSON;
 	private:
-		std::vector<Element*> _Elements;
+		std::vector<Element*> m_Elements;
 
 	public:
 		Array() = default;
@@ -20,7 +20,7 @@ namespace json {
 		void clear();
 
 		Element* at(size_t index);
-		size_t size() { return _Elements.size(); }
+		size_t size() { return m_Elements.size(); }
 
 		Element* operator[](size_t index);
 

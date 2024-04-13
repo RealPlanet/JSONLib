@@ -401,7 +401,7 @@ Element* Parser::parse_number(DataIterator& it)
 
 		return json::LiteralValue::create_number_value((int64_t)std::stoi(number));
 	}
-	catch (std::out_of_range& ex)
+	catch (std::out_of_range&)
 	{
 		return json::LiteralValue::create_number_value((int64_t)0);
 	}

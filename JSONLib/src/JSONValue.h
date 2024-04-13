@@ -33,9 +33,9 @@ namespace json {
 		};
 
 	private:
-		std::string _value;
-		ValueType _type;
-		LiteralValue(ValueType type, std::string source);
+		std::string m_Value;
+		ValueType m_Type;
+		LiteralValue(ValueType type, const std::string& source);
 	public:
 		LiteralValue(LiteralValue&&) = delete;
 		LiteralValue(const LiteralValue&) = delete;
@@ -57,7 +57,6 @@ namespace json {
 		double					as_fractional() const;
 		bool					as_bool() const;
 		const std::string&		as_str() const;
-		const std::u16string&	as_wstring() const;
 
 		void operator=(const char* newVal);
 		void operator=(bool newVal);

@@ -34,8 +34,8 @@ namespace json {
 		Object* o = dynamic_cast<Object*>(m_Root);
 		if (o != nullptr)
 		{
-			auto it = o->_Elements.find(key);
-			if (it != o->_Elements.end())
+			auto it = o->m_Elements.find(key);
+			if (it != o->m_Elements.end())
 				return it->second;
 		}
 

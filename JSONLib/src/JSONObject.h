@@ -8,7 +8,7 @@ namespace json {
 	{
 		friend class JSON;
 	private:
-		std::map<std::string, Element*> _Elements;
+		std::map<std::string, Element*> m_Elements;
 
 	public:
 		Object() = default;
@@ -16,15 +16,15 @@ namespace json {
 		Object(const Object&) = delete;
 
 		virtual ~Object() {
-			for (auto ptr : _Elements)
+			for (auto& ptr : m_Elements)
 				delete ptr.second;
 
-			_Elements.clear();
+			m_Elements.clear();
 		}
 
 		void insert(const std::string& name, Element* value);
 
-		Element* operator[](std::string key) { return this->_Elements[key]; }
+		Element* operator[](std::string key) { return this->m_Elements[key]; }
 
 		virtual std::string to_string(bool prettyPrint = false, int indentLevel = 0) override;
 		virtual Element* copy() const override;

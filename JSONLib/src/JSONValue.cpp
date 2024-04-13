@@ -32,97 +32,92 @@ LiteralValue* Element::as_literal()
 	return dynamic_cast<LiteralValue*>(this);
 }
 
-LiteralValue::LiteralValue(ValueType type, std::string source)
+LiteralValue::LiteralValue(ValueType type, const std::string& source)
 {
-	source.shrink_to_fit();
-	_value = std::move(source);
-	_type = type;
+	m_Value = source;
+	m_Type = type;
+
+	m_Value.shrink_to_fit();
 }
 
 bool LiteralValue::is_string()
 {
-	return _type == ValueType::String;
+	return m_Type == ValueType::String;
 }
 
 bool LiteralValue::is_number()
 {
-	return _type == ValueType::Number;
+	return m_Type == ValueType::Number;
 }
 
 bool LiteralValue::is_integer_number()
 {
-	return is_number() && _value.find('.') == -1;
+	return is_number() && m_Value.find('.') == -1;
 }
 
 bool LiteralValue::is_boolean()
 {
-	return _type == ValueType::Boolean;
+	return m_Type == ValueType::Boolean;
 }
 
 bool LiteralValue::is_null()
 {
-	return _type == ValueType::Null;
+	return m_Type == ValueType::Null;
 }
 
 const std::string& LiteralValue::as_str() const
 {
-	return _value;
-}
-
-const std::u16string& json::LiteralValue::as_wstring() const
-{
-	throw 1;
+	return m_Value;
 }
 
 int64_t json::LiteralValue::as_integer() const
 {
-	//assert(is_integer_number());
-	return std::stoi(_value);
+	return std::stoi(m_Value);
 }
 
 double json::LiteralValue::as_fractional() const
 {
-	return std::stod(_value);
+	return std::stod(m_Value);
 }
 
 bool json::LiteralValue::as_bool() const
 {
-	return _value == "true";
+	return m_Value == "true";
 }
 
 void json::LiteralValue::operator=(const char* newVal)
 {
-	_type = ValueType::String;
-	_value = newVal;
+	m_Type = ValueType::String;
+	m_Value = newVal;
 }
 
 void LiteralValue::operator=(bool newVal)
 {
-	_type = ValueType::Boolean;
-	_value = std::to_string(newVal);
+	m_Type = ValueType::Boolean;
+	m_Value = std::to_string(newVal);
 }
 
 void LiteralValue::operator=(int64_t newVal)
 {
-	_type = ValueType::Number;
-	_value = std::to_string(newVal);
+	m_Type = ValueType::Number;
+	m_Value = std::to_string(newVal);
 }
 
 void LiteralValue::operator=(double newVal)
 {
-	_type = ValueType::Number;
-	_value = std::to_string(newVal);
+	m_Type = ValueType::Number;
+	m_Value = std::to_string(newVal);
 }
 
 Element* LiteralValue::copy() const
 {
-	return new LiteralValue(this->_type, this->as_str());
+	return new LiteralValue(this->m_Type, this->as_str());
 }
 
 std::string LiteralValue::to_string(bool prettyPrint /*= false*/, int indentLevel /*= 0*/)
 {
-	if (_type == ValueType::Number ||
-		_type == ValueType::Boolean)
+	if (m_Type == ValueType::Number ||
+		m_Type == ValueType::Boolean)
 		return as_str();
 
 	std::string output;
