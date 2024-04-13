@@ -3,13 +3,7 @@
 #include <memory>
 #include <string>
 #include <stdexcept>
-
-#define JSON_CHECK_COMMA(iterator)\
-	iterator.skip_wspace();\
-	if (iterator.peek() != ',')\
-		break;\
-	iterator.read1();\
-	iterator.skip_wspace();\
+#include <sstream>
 
 namespace json {
 	namespace utility {
@@ -37,6 +31,17 @@ namespace json {
 				return false;
 
 			return ::isdigit(c);
+		}
+
+		inline bool str2int(int& i, char const* s)
+		{
+			std::stringstream ss(s);
+			ss >> i;
+			if (ss.fail()) {
+				// not an integer
+				return false;
+			}
+			return true;
 		}
 	}
 }

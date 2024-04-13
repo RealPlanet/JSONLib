@@ -11,26 +11,23 @@
 
 using namespace json;
 
-void Parser::DataIterator::skip_wspace()
-{
-	while (is_valid())
-	{
+size_t Parser::MaxDepth{ 500 };
+
+void Parser::DataIterator::skip_wspace() {
+	while (is_valid()) {
 		if (!iswspace(peek())) {
 			return;
 		}
 
 		offset++;
 	}
-
 }
 
-JSON json::Parser::from_text(const std::string& text)
-{
+JSON Parser::from_text(const std::string& text) {
 	return from_text(text, nullptr);
 }
 
-JSON Parser::from_text(const std::string& text, std::vector<std::string>* errors)
-{
+JSON Parser::from_text(const std::string& text, std::vector<std::string>* errors) {
 	Parser p;
 	DataIterator it{};
 	it.data = text;
@@ -62,13 +59,11 @@ JSON Parser::from_text(const std::string& text, std::vector<std::string>* errors
 	return element;
 }
 
-JSON Parser::from_file(const std::string& path)
-{
+JSON Parser::from_file(const std::string& path) {
 	return from_file(path, nullptr);
 }
 
-JSON Parser::from_file(const std::string& path, std::vector<std::string>* errors)
-{
+JSON Parser::from_file(const std::string& path, std::vector<std::string>* errors) {
 	Parser p;
 
 	std::ifstream file;
@@ -89,21 +84,18 @@ JSON Parser::from_file(const std::string& path, std::vector<std::string>* errors
 
 	auto element = p.parse_json_value(it);
 	it.skip_wspace();
-	if (it.offset != it.data.size() && p.m_Errors.size() == 0)
-	{
+	if (it.offset != it.data.size() && p.m_Errors.size() == 0) {
 		p.build_error(Parser::LeftoverCharactersInData, it);
 		delete element;
 		element = nullptr;
 	}
 
-	if (errors)
-	{
+	if (errors) {
 		*errors = p.m_Errors;
 	}
 
 #ifdef _DEBUG
-	if (p.m_Errors.size() != 0)
-	{
+	if (p.m_Errors.size() != 0) {
 		assert(element == nullptr);
 	}
 #endif // DEBUG
@@ -111,32 +103,32 @@ JSON Parser::from_file(const std::string& path, std::vector<std::string>* errors
 	return std::move(element);
 }
 
-std::vector<std::string>& Parser::get_errors()
-{
+std::vector<std::string>& Parser::get_errors() {
 	return m_Errors;
 }
 
-void Parser::clear_errors()
-{
+void Parser::clear_errors() {
 	m_Errors.clear();
 }
 
-Element* Parser::parse_json_value(DataIterator& it)
-{
-	while (it.is_valid())
-	{
+Element* Parser::parse_json_value(DataIterator& it) {
+	while (it.is_valid()) {
 		it.skip_wspace();
 		switch (it.peek())
 		{
 		case '[':
 		{
 			// Parse array
-			return parse_json_array(it);
+			Element* result = parse_json_array(it);
+			m_Depth--;
+			return result;
 		}
 		case '{':
 		{
 			// Parse object
-			return parse_json_object(it);
+			Element* result = parse_json_object(it);
+			m_Depth--;
+			return result;
 		}
 		case '"':
 		{
@@ -146,7 +138,7 @@ Element* Parser::parse_json_value(DataIterator& it)
 			if (result != 0)
 				return nullptr;
 
-			return json::LiteralValue::create_str_value(s);
+			return LiteralValue::create_str_value(s);
 		}
 		case '0':
 		case '1':
@@ -170,11 +162,11 @@ Element* Parser::parse_json_value(DataIterator& it)
 		}
 		case 'n':
 		{
-			if (strncmp(&it.data[it.offset], "null", 4) == 0)
-			{
+			if (strncmp(&it.data[it.offset], "null", 4) == 0) {
 				it.offset += 4;
-				return json::LiteralValue::create_null_value();
+				return LiteralValue::create_null_value();
 			}
+
 			build_error(ErrType::ExpectedNull, it);
 			it.offset = it.data.size();
 			break;
@@ -186,38 +178,41 @@ Element* Parser::parse_json_value(DataIterator& it)
 		}
 	}
 
-	if (it.offset == it.data.size() && m_Errors.size() == 0)
-	{
+	if (it.offset == it.data.size() && m_Errors.size() == 0) {
 		build_error(Parser::UnexpectedEOF, it);
 	}
 
 	return nullptr;
 }
 
-Element* Parser::parse_json_array(DataIterator& it)
-{
-	if (it.peek() != '[')
-	{
+Element* Parser::parse_json_array(DataIterator& it) {
+	if (m_Depth >= Parser::MaxDepth) {
+		build_error(Parser::MaxJSONDepthReached, it);
+		return nullptr;
+	}
+
+	m_Depth++;
+	if (it.peek() != '[') {
 		build_error(Parser::ExpectedStartOfArray, it);
 		return nullptr;
 	}
 
 	it.read1();
 	std::unique_ptr<Array> result = std::make_unique<Array>();
-	while (it.is_valid() && it.peek() != ']')
-	{
+	while (it.is_valid() && it.peek() != ']') {
+
 		it.skip_wspace();
 		Element* val = parse_json_value(it);
-		if (!val)
-		{
+		if (!val) {
 			return nullptr;
 		}
 
 		result->push_back(val);
 
 		it.skip_wspace();
-		if (it.peek() != ',')
+		if (it.peek() != ',') {
 			break;
+		}
 
 		it.read1();
 
@@ -231,8 +226,7 @@ Element* Parser::parse_json_array(DataIterator& it)
 	}
 
 	it.skip_wspace();
-	if (it.peek() != ']')
-	{
+	if (it.peek() != ']') {
 		build_error(Parser::ExpectedEndOfArray, it);
 		return nullptr;
 	}
@@ -241,10 +235,15 @@ Element* Parser::parse_json_array(DataIterator& it)
 	return result.release();
 }
 
-Element* Parser::parse_json_object(DataIterator& it)
-{
-	if (it.peek() != '{')
-	{
+Element* Parser::parse_json_object(DataIterator& it) {
+	if (m_Depth >= Parser::MaxDepth) {
+		build_error(Parser::MaxJSONDepthReached, it);
+		return nullptr;
+	}
+
+	m_Depth++;
+
+	if (it.peek() != '{') {
 		build_error(Parser::ExpectedStartOfObject, it);
 		return nullptr;
 	}
@@ -255,13 +254,11 @@ Element* Parser::parse_json_object(DataIterator& it)
 	std::unique_ptr<Object> result = std::make_unique<Object>();
 	bool has_read_comma = false;
 	size_t last_comma_index = -1;
-	while (it.is_valid() && it.peek() != '}')
-	{
+	while (it.is_valid() && it.peek() != '}') {
 		it.skip_wspace();
 		auto tuple = parse_member(it);
 		auto ptr = std::get<1>(tuple);
-		if (!ptr)
-		{
+		if (!ptr) {
 			return nullptr;
 		}
 
@@ -269,24 +266,24 @@ Element* Parser::parse_json_object(DataIterator& it)
 		result->insert(std::get<0>(tuple), ptr);
 		it.skip_wspace();
 
-		if (it.peek() != ',')
+		if (it.peek() != ',') {
 			break;
+		}
+
 
 		last_comma_index = it.offset;
 		has_read_comma = true;
 		it.read1();
 	}
 
-	if (has_read_comma)
-	{
+	if (has_read_comma) {
 		it.offset = last_comma_index;
 		build_error(Parser::UnexpectedComma, it);
 		return nullptr;
 	}
 
 	it.skip_wspace();
-	if (it.peek() != '}')
-	{
+	if (it.peek() != '}') {
 		build_error(Parser::ExpectedEndOfObject, it);
 		return nullptr;
 	}
@@ -295,24 +292,21 @@ Element* Parser::parse_json_object(DataIterator& it)
 	return result.release();
 }
 
-Element* Parser::parse_boolean(DataIterator& it)
-{
+Element* Parser::parse_boolean(DataIterator& it) {
 	std::string boolValue;
 
 	it.skip_wspace();
 	if (it.peek() == 't') {
-		if (strncmp(&it.data[it.offset], "true", 4) == 0)
-		{
+		if (strncmp(&it.data[it.offset], "true", 4) == 0) {
 			it.offset += 4;
-			return json::LiteralValue::create_boolean_value(true);
+			return LiteralValue::create_boolean_value(true);
 		}
 	}
 
 	if (it.peek() == 'f') {
-		if (strncmp(&it.data[it.offset], "false", 5) == 0)
-		{
+		if (strncmp(&it.data[it.offset], "false", 5) == 0) {
 			it.offset += 5;
-			return json::LiteralValue::create_boolean_value(false);
+			return LiteralValue::create_boolean_value(false);
 		}
 
 	}
@@ -320,8 +314,7 @@ Element* Parser::parse_boolean(DataIterator& it)
 	build_error(Parser::ExpectedBool, it);
 	return nullptr;
 }
-Element* Parser::parse_number(DataIterator& it)
-{
+Element* Parser::parse_number(DataIterator& it) {
 	it.skip_wspace();
 
 	std::string number = "";
@@ -329,8 +322,7 @@ Element* Parser::parse_number(DataIterator& it)
 
 	char firstChar = it.peek();
 	if (!utility::isdigit(firstChar)) {
-		if (firstChar != '-')
-		{
+		if (firstChar != '-') {
 			build_error(Parser::ErrType::NotANumber, it);
 			return nullptr;
 		}
@@ -348,8 +340,7 @@ Element* Parser::parse_number(DataIterator& it)
 	}
 
 	// Number has fractionalpart
-	if (it.peek() == '.')
-	{
+	if (it.peek() == '.') {
 		isFractional = true;
 		number += it.read1();
 		if (!utility::isdigit(it.peek())) {
@@ -363,8 +354,7 @@ Element* Parser::parse_number(DataIterator& it)
 	}
 
 	// Number has exponent part
-	if (it.peek() == 'e' || it.peek() == 'E')
-	{
+	if (it.peek() == 'e' || it.peek() == 'E') {
 		number += it.read1();
 		firstChar = it.peek();
 		if (!utility::isdigit(firstChar)) {
@@ -394,30 +384,28 @@ Element* Parser::parse_number(DataIterator& it)
 	}
 
 	try {
-		if (isFractional)
-		{
-			return json::LiteralValue::create_number_value(std::stod(number));
+		if (isFractional) {
+			return LiteralValue::create_number_value(std::stod(number));
 		}
 
-		return json::LiteralValue::create_number_value((int64_t)std::stoi(number));
+		return LiteralValue::create_number_value((int64_t)std::stoi(number));
 	}
 	catch (std::out_of_range&)
 	{
-		return json::LiteralValue::create_number_value((int64_t)0);
+		return LiteralValue::create_number_value((int64_t)0);
 	}
 }
 
-Parser::ErrType json::Parser::is_valid_json_number(const std::string& value)
-{
+Parser::ErrType Parser::is_valid_json_number(const std::string& value) {
 	size_t strLen = value.size();
-	if (strLen == 0)
+	if (strLen == 0) {
 		return Parser::ErrType::NotANumber;
+	}
 
-	if (strLen == 1)
-	{
+
+	if (strLen == 1) {
 		// Number can only contain these characters but not start with these
-		if (value[0] == '.' || value[0] == '-' || value[0] == 'e')
-		{
+		if (value[0] == '.' || value[0] == '-' || value[0] == 'e') {
 			return Parser::ErrType::NotANumber;
 		}
 	}
@@ -427,10 +415,8 @@ Parser::ErrType json::Parser::is_valid_json_number(const std::string& value)
 
 	// If value is zero and there are more characters in the number
 	// then it is an error
-	if (value[offset] == '0')
-	{
-		if (offset + 1 < value.size())
-		{
+	if (value[offset] == '0') {
+		if (offset + 1 < value.size()) {
 			if (value[offset + 1] != '.' && value[offset + 1] != 'e')
 				return Parser::ErrType::NumberCannotStartWithZero;
 		}
@@ -439,8 +425,7 @@ Parser::ErrType json::Parser::is_valid_json_number(const std::string& value)
 	return Parser::ErrType::NoError;
 }
 
-bool Parser::get_escaped_character(DataIterator& it, std::string& escapedCharacters)
-{
+bool Parser::get_escaped_character(DataIterator& it, std::string& escapedCharacters) {
 	escapedCharacters = "";
 	it.read1(); // Consume escape char
 	switch (it.peek())
@@ -477,10 +462,9 @@ bool Parser::get_escaped_character(DataIterator& it, std::string& escapedCharact
 		int i{ 0 };
 		char hex[5]{ 0 };
 
-		for (int j{ 0 }; j < 4; j++)
-		{
+		for (int j{ 0 }; j < 4; j++) {
 			if (!add_if_hex(hex, i++, it.peek())) {
-				build_error(json::Parser::ExpectedUTFCharacter, it);
+				build_error(Parser::ExpectedUTFCharacter, it);
 				return false;
 			}
 
@@ -491,14 +475,15 @@ bool Parser::get_escaped_character(DataIterator& it, std::string& escapedCharact
 		std::string utfChars = hex;
 		char32_t c = std::stoul(utfChars, nullptr, 16);
 		// Split the actual UTF8 Character into bytes
-		std::mbstate_t state;
+
+		std::mbstate_t state{};
 		auto len = std::c32rtomb(hex, c, &state);
 		if (len == std::size_t(-1)) {
 			len = std::c32rtomb(hex, '\uFFFF', &state);
 			if (len == std::size_t(-1)) {
 				throw std::exception("UTF ERROR");
 			}
-			//build_error(json::Parser::CodepointNotRecognized, it, startingCodepointPosition);
+			//build_error(Parser::CodepointNotRecognized, it, startingCodepointPosition);
 		}
 
 		// Null terminate it and send it back up
@@ -512,21 +497,8 @@ bool Parser::get_escaped_character(DataIterator& it, std::string& escapedCharact
 	return false;
 }
 
-int json::Parser::hex2int(char ch)
-{
-	if (ch >= '0' && ch <= '9')
-		return ch - '0';
-	if (ch >= 'A' && ch <= 'F')
-		return ch - 'A' + 10;
-	if (ch >= 'a' && ch <= 'f')
-		return ch - 'a' + 10;
-	return -1;
-}
-
-bool json::Parser::add_if_hex(char* arr, int index, char c)
-{
-	if (c < 0)
-	{
+bool Parser::add_if_hex(char* arr, int index, char c) {
+	if (c < 0) {
 		// Invalid data
 		return false;
 	}
@@ -542,14 +514,12 @@ bool json::Parser::add_if_hex(char* arr, int index, char c)
 		return false;
 	}
 
-	arr[index] = c;// hex2int(c);
+	arr[index] = c;
 	return true;
 }
 
-int Parser::parse_string(DataIterator& it, std::string& result)
-{
-	if (it.peek() != '"')
-	{
+int Parser::parse_string(DataIterator& it, std::string& result) {
+	if (it.peek() != '"') {
 		build_error(Parser::ExpectedQuotes, it);
 		return -1;
 	}
@@ -557,15 +527,13 @@ int Parser::parse_string(DataIterator& it, std::string& result)
 
 	while (it.peek() != '"') {
 
-		if (!it.is_valid())
-		{
-			build_error(json::Parser::UnexpectedEOF, it);
+		if (!it.is_valid()) {
+			build_error(Parser::UnexpectedEOF, it);
 			return -1;
 		}
 
-		if (it.peek() == '\\')
-		{
-			std::string escapedCharacters; 
+		if (it.peek() == '\\') {
+			std::string escapedCharacters;
 			if (!get_escaped_character(it, escapedCharacters)) {
 				return -1;
 			}
@@ -573,50 +541,43 @@ int Parser::parse_string(DataIterator& it, std::string& result)
 			continue;
 		}
 
-		if (it.peek() == 0)
-		{
-			build_error(json::Parser::UnexpectedCharTerminator, it);
+		if (it.peek() == 0) {
+			build_error(Parser::UnexpectedCharTerminator, it);
 			return -1;
 		}
 
-		if (it.peek() == '\n' ||
-			it.peek() == '\r')
-		{
-			build_error(json::Parser::UnexpectedNewline, it);
+		if (it.peek() == '\n' || it.peek() == '\r') {
+			build_error(Parser::UnexpectedNewline, it);
 			return -1;
 		}
 
-		if (it.peek() == '\t')
-		{
-			build_error(json::Parser::UnexpectedTabCharacter, it);
+		if (it.peek() == '\t') {
+			build_error(Parser::UnexpectedTabCharacter, it);
 			return -1;
 		}
 
 		result += it.read1();
 	}
 
-	if (it.peek() != '"')
-	{
+	if (it.peek() != '"') {
 		build_error(Parser::ExpectedQuotes, it);
 		return -1;
 	}
+
 	it.read1();
 	return 0;
 }
 
-std::tuple<std::string, Element*> Parser::parse_member(DataIterator& it)
-{
+std::tuple<std::string, Element*> Parser::parse_member(DataIterator& it) {
 
 	std::string memberName;
 	int result = parse_string(it, memberName);
-	if (result != 0)
-	{
+	if (result != 0) {
 		return std::make_tuple("", nullptr);
 	}
 
 	it.skip_wspace();
-	if (it.peek() != ':')
-	{
+	if (it.peek() != ':') {
 		build_error(Parser::ExpectedColonMarker, it);
 		return std::make_tuple(memberName, nullptr);
 	}
@@ -625,8 +586,7 @@ std::tuple<std::string, Element*> Parser::parse_member(DataIterator& it)
 	return std::make_tuple(memberName, parse_json_value(it));
 }
 
-void Parser::build_error(ErrType type, DataIterator& data)
-{
+void Parser::build_error(ErrType type, DataIterator& data) {
 	std::string templ = get_err_template(type);
 	size_t charIndex = data.offset;
 	size_t startIndex = charIndex;
@@ -649,12 +609,20 @@ void Parser::build_error(ErrType type, DataIterator& data)
 	std::string preview(&cString[startIndex], &cString[endIndex]);
 	std::string errMarker = '\n' + std::string(charIndex - startIndex, ' ') + '^';
 	preview += errMarker;
-	templ = json::utility::string_format(templ, charIndex);
+
+	switch (type)
+	{
+	case ErrType::MaxJSONDepthReached:
+		templ = utility::string_format(templ, Parser::MaxDepth, charIndex);
+	default:
+		templ = utility::string_format(templ, charIndex);
+		break;
+	}
+
 	m_Errors.push_back(templ + preview);
 }
 
-std::string json::Parser::get_err_template(ErrType type)
-{
+std::string Parser::get_err_template(ErrType type) {
 	switch (type) {
 	default:
 	case ErrType::Unknown:
@@ -663,8 +631,6 @@ std::string json::Parser::get_err_template(ErrType type)
 		return "Expected 'null' keyword at '%d':\n";
 	case ErrType::ExpectedBool:
 		return "Expected 'true' or 'false' keyword while parsing boolean at '%d':\n";
-	case ErrType::UnexpectedCharacterInNumber:
-		return "Unexpected character in number at '%d':\n";
 	case ErrType::UnexpectedCharacterInFile:
 		return "Unexpected character at '%d':\n";
 	case ErrType::UnexpectedEOF:
@@ -695,22 +661,16 @@ std::string json::Parser::get_err_template(ErrType type)
 		return "Value is not a valid number at '%d':\n";
 	case ErrType::NumberCannotStartWithZero:
 		return "Number at '%d' starts with 0, leading 0s are not allowed:\n";
-	case ErrType::NumberCannotStartWithExponential:
-		return "Number at '%d' cannot start with exponential symbol:\n";
-	case ErrType::MultipleDecimalSeparators:
-		return "Number contains multiple decimal separators '.', first occurence at '%d':\n";
-	case ErrType::MultipleExponentialSymbols:
-		return "Number contains multiple exponential symbols 'e', first occurence at '%d':\n";
 	case ErrType::NumberCannotEndWithSign:
 		return "Number cannot end with '-' or '+', error at '%d':\n";
 	case ErrType::NumberCannotEndWithExponentialCharacter:
 		return "Number cannot end with 'e', error at '%d':\n";
 	case ErrType::NumberCannotEndWithDecimalSeparator:
 		return "Number ends with decimal separator '.' at '%d':\n";
-	case ErrType::NumberHasNoRealPart:
-		return "Number must have a real part, unable to parse number at '%d':\n";
 	case ErrType::ExpectedUTFCharacter:
 		return "Character at '%d' is not a HEX digit!\n";
+	case ErrType::MaxJSONDepthReached:
+		return "Max JSON depth of '%d' reached at '%d'";
 	case ErrType::UnexpectedEscapeCharacter:
 		return "Unexpected escape character at '%d', it is not a valid escape character!\n";
 	}

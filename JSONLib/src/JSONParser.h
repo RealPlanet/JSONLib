@@ -15,7 +15,6 @@ namespace json {
 			ExpectedNull,
 			ExpectedBool,
 
-			UnexpectedCharacterInNumber,
 			UnexpectedCharacterInFile,
 
 			UnexpectedEOF,
@@ -38,13 +37,11 @@ namespace json {
 			// Number errors
 			NotANumber,
 			NumberCannotStartWithZero,
-			NumberCannotStartWithExponential,
-			MultipleDecimalSeparators,
-			MultipleExponentialSymbols,
 			NumberCannotEndWithDecimalSeparator,
 			NumberCannotEndWithExponentialCharacter,
 			NumberCannotEndWithSign,
-			NumberHasNoRealPart,
+
+			MaxJSONDepthReached,
 
 			NoError,
 		};
@@ -67,6 +64,8 @@ namespace json {
 
 		// Since we stop at first error this can be a single string
 		std::vector<std::string> m_Errors;
+		size_t m_Depth{ 0 };
+
 		Parser() = default;
 
 		Element* parse_json_value(DataIterator& it);
@@ -86,6 +85,7 @@ namespace json {
 		bool add_if_hex(char*, int, char);
 		int hex2int(char c);
 	public:
+		static size_t MaxDepth;
 		static JSON from_text(const std::string& text, std::vector<std::string>* errors);
 		static JSON from_file(const std::string& path, std::vector<std::string>* errors);
 		static JSON from_text(const std::string& text);

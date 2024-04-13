@@ -25,6 +25,8 @@ namespace json {
 		bool		is_valid() const;
 
 		Element* operator[](std::string key);
+		Element* at_path(const std::string& path, const std::string& separator = "///");
+
 		//JSONValue* operator[](size_t key);
 		bool operator==(const JSON& other) const;
 		bool operator!=(const JSON& other) const;
