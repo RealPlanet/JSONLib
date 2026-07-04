@@ -51,3 +51,7 @@ Element* Object::copy() const {
 Object* Element::as_object() {
 	return dynamic_cast<Object*>(this);
 }
+
+const Object* json::Element::as_object() const {
+	return dynamic_cast<const Object*>(this);
+}

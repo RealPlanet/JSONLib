@@ -16,9 +16,18 @@ namespace json {
 		virtual std::string to_string(bool prettyPrint = false, int indentLevel = 0) = 0;
 		virtual Element* copy() const = 0;
 
-		Array*			as_array();
-		Object*			as_object();
-		LiteralValue*	as_literal();
+		Array*				as_array();
+		const Array*		as_array() const;
+		Object*				as_object();
+		const Object*		as_object() const;
+		LiteralValue*		as_literal();
+		const LiteralValue*	as_literal() const;
+
+		operator const std::string&() const;
+		operator Object*();
+		operator const Object*() const;
+		operator Array*();
+		operator const Array*() const;
 	};
 
 	class LiteralValue

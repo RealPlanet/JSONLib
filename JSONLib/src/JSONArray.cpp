@@ -39,7 +39,7 @@ std::string Array::to_string(bool prettyPrint /*= false*/, int indentLevel /*= 0
 
 		if (prettyPrint) {
 			result += "\n";
-		}			
+		}
 	}
 
 	result += ::utility::calculate_indentation(prettyPrint, indentLevel - 1) + "] ";
@@ -57,4 +57,8 @@ Element* Array::copy() const {
 
 Array* Element::as_array() {
 	return dynamic_cast<Array*>(this);
+}
+
+const Array* json::Element::as_array() const {
+	return dynamic_cast<const Array*>(this);
 }

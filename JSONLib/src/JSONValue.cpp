@@ -26,6 +26,36 @@ LiteralValue* Element::as_literal() {
 	return dynamic_cast<LiteralValue*>(this);
 }
 
+const LiteralValue* Element::as_literal() const {
+	return dynamic_cast<const LiteralValue*>(this);
+}
+
+Element::operator const std::string& () const {
+	const LiteralValue* literal = as_literal();
+	if (literal != nullptr) {
+		return literal->as_str();
+	}
+
+	static std::string def;
+	return def;
+}
+
+Element::operator Object* () {
+	return as_object();
+}
+
+Element::operator const Object* () const {
+	return as_object();
+}
+
+Element::operator Array* () {
+	return as_array();
+}
+
+Element::operator const Array* () const {
+	return as_array();
+}
+
 LiteralValue::LiteralValue(ValueType type, const std::string& source) {
 	m_Value = source;
 	m_Type = type;
