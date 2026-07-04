@@ -63,24 +63,32 @@ JSON Parser::from_file(const std::string& path) {
 	return from_file(path, nullptr);
 }
 
-JSON Parser::from_file(const std::string& path, std::vector<std::string>* errors) {
-	Parser p;
+JSON json::Parser::from_stream(std::istream& stream){
+	return from_stream(stream, nullptr);
+}
 
+JSON Parser::from_file(const std::string& path, std::vector<std::string>* errors) {
 	std::ifstream file;
 	file.open(path);
+	JSON json = from_stream(file, errors);
+	file.close();
+	return json;
+}
 
-	file.ignore(std::numeric_limits<std::streamsize>::max());
-	const size_t byte_count = static_cast<size_t>(file.gcount());
-	file.clear();   //  Since ignore will have set eof.
-	file.seekg(0, std::ios_base::beg);
+JSON Parser::from_stream(std::istream& stream, std::vector<std::string>* errors){
+	Parser p;
+
+	stream.ignore(std::numeric_limits<std::streamsize>::max());
+	const size_t byte_count = static_cast<size_t>(stream.gcount());
+	stream.clear();   //  Since ignore will have set eof.
+	stream.seekg(0, std::ios_base::beg);
 
 	DataIterator it{};
 	it.data.resize(byte_count);
 	it.offset = 0;
 
 	char* first = const_cast<char*>(it.data.c_str());
-	file.read(&first[0], it.data.size());
-	file.close();
+	stream.read(&first[0], it.data.size());
 
 	auto element = p.parse_json_value(it);
 	it.skip_wspace();
@@ -100,7 +108,7 @@ JSON Parser::from_file(const std::string& path, std::vector<std::string>* errors
 	}
 #endif // DEBUG
 
-	return std::move(element);
+	return JSON{ element };
 }
 
 std::vector<std::string>& Parser::get_errors() {

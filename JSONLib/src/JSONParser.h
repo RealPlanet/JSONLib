@@ -83,13 +83,15 @@ namespace json {
 		std::string get_err_template(ErrType type);
 		bool get_escaped_character(DataIterator& it, std::string& escapedCharacters);
 		bool add_if_hex(char*, int, char);
-		int hex2int(char c);
 	public:
 		static size_t MaxDepth;
 		static JSON from_text(const std::string& text, std::vector<std::string>* errors);
 		static JSON from_file(const std::string& path, std::vector<std::string>* errors);
+		static JSON from_stream(std::istream& stream, std::vector<std::string>* errors);
+
 		static JSON from_text(const std::string& text);
 		static JSON from_file(const std::string& path);
+		static JSON from_stream(std::istream& stream);
 
 		std::vector<std::string>&	get_errors();
 		void						clear_errors();
