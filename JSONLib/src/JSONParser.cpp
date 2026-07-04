@@ -487,7 +487,7 @@ bool Parser::get_escaped_character(DataIterator& it, std::string& escapedCharact
 		std::mbstate_t state{};
 		auto len = std::c32rtomb(hex, c, &state);
 		if (len == std::size_t(-1)) {
-			len = std::c32rtomb(hex, '\uFFFF', &state);
+			len = std::c32rtomb(hex, L'\uFFFF', &state);
 			if (len == std::size_t(-1)) {
 				throw std::exception("UTF ERROR");
 			}
@@ -622,6 +622,7 @@ void Parser::build_error(ErrType type, DataIterator& data) {
 	{
 	case ErrType::MaxJSONDepthReached:
 		templ = utility::string_format(templ, Parser::MaxDepth, charIndex);
+		break;
 	default:
 		templ = utility::string_format(templ, charIndex);
 		break;

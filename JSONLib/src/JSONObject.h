@@ -20,7 +20,7 @@ namespace json {
 		bool contains(const std::string& key);
 		size_t size() { return m_Elements.size(); }
 
-		Element* operator[](std::string key) { return m_Elements[key]; }
+		Element* operator[](const std::string& key) { return m_Elements[key]; }
 
 		virtual std::string to_string(bool prettyPrint = false, int indentLevel = 0) override;
 		virtual Element* copy() const override;

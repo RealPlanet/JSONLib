@@ -23,6 +23,8 @@ namespace json {
 		size_t size() { return m_Elements.size(); }
 
 		Element* operator[](size_t index);
+		auto begin() { return m_Elements.begin(); }
+		auto end() { return m_Elements.end(); }
 
 		// Inherited from JSONValue
 		virtual std::string to_string(bool prettyPrint = false, int indentLevel = 0) override;

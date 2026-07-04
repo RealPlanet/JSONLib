@@ -39,7 +39,7 @@ Element* JSON::operator[](std::string key) {
 	return nullptr;
 }
 
-Element* JSON::at_path(const std::string& path, const std::string& separator) {
+Element* get_from_node_path(json::Element* element, const std::string& path, const std::string& separator) {
 	std::vector<std::string> tokens;
 
 	size_t index{ 0 };
@@ -54,7 +54,7 @@ Element* JSON::at_path(const std::string& path, const std::string& separator) {
 
 	tokens.push_back(path.substr(prevIndex));
 
-	Element* current{ m_Root };
+	Element* current{ element };
 	for (auto& a : tokens) {
 		int arrIndex{ -1 };
 		Array* arr = current->as_array();
@@ -77,6 +77,14 @@ Element* JSON::at_path(const std::string& path, const std::string& separator) {
 	}
 
 	return current;
+}
+
+Element* JSON::at_path(const std::string& path, const std::string& separator) {
+	return get_from_node_path(m_Root, path, separator);
+}
+
+const Element* json::JSON::at_path(const std::string& path, const std::string& separator) const {
+	return get_from_node_path(m_Root, path, separator);
 }
 
 bool JSON::operator!=(const JSON& other) const {
