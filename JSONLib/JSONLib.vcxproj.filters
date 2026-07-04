@@ -18,22 +18,22 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\JSON.h">
+    <ClInclude Include="include\JSON.h">
       <Filter>JSON</Filter>
     </ClInclude>
-    <ClInclude Include="src\JSONArray.h">
+    <ClInclude Include="include\JSONArray.h">
       <Filter>JSON\Data</Filter>
     </ClInclude>
-    <ClInclude Include="src\JSONObject.h">
+    <ClInclude Include="include\JSONObject.h">
       <Filter>JSON\Data</Filter>
     </ClInclude>
-    <ClInclude Include="src\JSONValue.h">
+    <ClInclude Include="include\JSONValue.h">
       <Filter>JSON\Data</Filter>
     </ClInclude>
-    <ClInclude Include="src\JSONUtility.h">
+    <ClInclude Include="include\JSONUtility.h">
       <Filter>JSON\Data</Filter>
     </ClInclude>
-    <ClInclude Include="src\JSONParser.h">
+    <ClInclude Include="include\JSONParser.h">
       <Filter>JSON</Filter>
     </ClInclude>
   </ItemGroup>
