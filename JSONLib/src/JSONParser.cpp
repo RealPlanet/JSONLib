@@ -28,43 +28,22 @@ JSON Parser::from_text(const std::string& text) {
 }
 
 JSON Parser::from_text(const std::string& text, std::vector<std::string>* errors) {
-	Parser p;
-	DataIterator it{};
-	it.data = text;
-	it.offset = 0;
 
-	auto element = p.parse_json_value(it);
-	it.skip_wspace();
-
-	if (it.offset != it.data.size() && p.m_Errors.size() == 0)
-	{
-		p.build_error(Parser::LeftoverCharactersInData, it);
-		delete element;
-		element = nullptr;
-	}
-
-	if (errors)
-	{
-		*errors = p.m_Errors;
-	}
-
-#ifdef _DEBUG
-	if (p.m_Errors.size() != 0)
-	{
-		assert(element == nullptr);
-	}
-#endif // DEBUG
-
-
-	return element;
+	std::span<const uint8_t> bytes{ reinterpret_cast<const uint8_t*>(text.data()), text.size() };
+	DataIterator it{ bytes };
+	return from_iterator(it, errors);
 }
 
 JSON Parser::from_file(const std::string& path) {
 	return from_file(path, nullptr);
 }
 
-JSON json::Parser::from_stream(std::istream& stream){
+JSON json::Parser::from_stream(std::istream& stream) {
 	return from_stream(stream, nullptr);
+}
+
+JSON json::Parser::from_memory(std::vector<uint8_t>& stream) {
+	return from_memory(stream, nullptr);
 }
 
 JSON Parser::from_file(const std::string& path, std::vector<std::string>* errors) {
@@ -75,21 +54,29 @@ JSON Parser::from_file(const std::string& path, std::vector<std::string>* errors
 	return json;
 }
 
-JSON Parser::from_stream(std::istream& stream, std::vector<std::string>* errors){
-	Parser p;
-
+JSON Parser::from_stream(std::istream& stream, std::vector<std::string>* errors) {
 	stream.ignore(std::numeric_limits<std::streamsize>::max());
 	const size_t byte_count = static_cast<size_t>(stream.gcount());
 	stream.clear();   //  Since ignore will have set eof.
 	stream.seekg(0, std::ios_base::beg);
 
-	DataIterator it{};
-	it.data.resize(byte_count);
-	it.offset = 0;
+	std::vector<uint8_t> data;
+	data.resize(byte_count);
+	char* firstPtr = (char*)(&data[0]);
+	stream.read(firstPtr, data.size());
 
-	char* first = const_cast<char*>(it.data.c_str());
-	stream.read(&first[0], it.data.size());
+	DataIterator it{ data };
+	return from_iterator(it, errors);
+}
 
+JSON json::Parser::from_memory(std::vector<uint8_t>& stream, std::vector<std::string>* errors) {
+	DataIterator it{ stream };
+	return from_iterator(it, nullptr);
+}
+
+JSON json::Parser::from_iterator(DataIterator& it, std::vector<std::string>* errors)
+{
+	Parser p;
 	auto element = p.parse_json_value(it);
 	it.skip_wspace();
 	if (it.offset != it.data.size() && p.m_Errors.size() == 0) {
@@ -170,7 +157,8 @@ Element* Parser::parse_json_value(DataIterator& it) {
 		}
 		case 'n':
 		{
-			if (strncmp(&it.data[it.offset], "null", 4) == 0) {
+			const char* ptr = reinterpret_cast<const char*>(&it.data[it.offset]);
+			if (strncmp(ptr, "null", 4) == 0) {
 				it.offset += 4;
 				return LiteralValue::create_null_value();
 			}
@@ -305,14 +293,16 @@ Element* Parser::parse_boolean(DataIterator& it) {
 
 	it.skip_wspace();
 	if (it.peek() == 't') {
-		if (strncmp(&it.data[it.offset], "true", 4) == 0) {
+		const char* ptr = reinterpret_cast<const char*>(&it.data[it.offset]);
+		if (strncmp(ptr, "true", 4) == 0) {
 			it.offset += 4;
 			return LiteralValue::create_boolean_value(true);
 		}
 	}
 
 	if (it.peek() == 'f') {
-		if (strncmp(&it.data[it.offset], "false", 5) == 0) {
+		const char* ptr = reinterpret_cast<const char*>(&it.data[it.offset]);
+		if (strncmp(ptr, "false", 5) == 0) {
 			it.offset += 5;
 			return LiteralValue::create_boolean_value(false);
 		}
