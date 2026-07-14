@@ -25,6 +25,8 @@ namespace json {
 		Element* operator[](size_t index);
 		auto begin() { return m_Elements.begin(); }
 		auto end() { return m_Elements.end(); }
+		auto begin() const { return m_Elements.cbegin(); }
+		auto end() const { return m_Elements.cend(); }
 
 		// Inherited from JSONValue
 		virtual std::string to_string(bool prettyPrint = false, int indentLevel = 0) override;
