@@ -87,6 +87,12 @@ const Element* json::JSON::at_path(const std::string& path, const std::string& s
 	return get_from_node_path(m_Root, path, separator);
 }
 
+void json::JSON::take_ownership_of(JSON&& json)
+{
+	m_Root = json.m_Root;
+	json.m_Root = nullptr;
+}
+
 bool JSON::operator!=(const JSON& other) const {
 	return !(*this == other);
 }
