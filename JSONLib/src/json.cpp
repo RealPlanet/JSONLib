@@ -1,0 +1,117 @@
+
+#include "JSON.h"
+#include "JValue.h"
+#include "JArray.h"
+#include "JObject.h"
+#include "JUtility.h"
+
+#include <fstream>
+#include <cassert>
+#include <sstream>
+#include <iostream>
+
+using namespace json;
+
+JSON::JSON(JSON&& m) noexcept {
+	m_Root = m.m_Root;
+	m.m_Root = nullptr;
+}
+
+JSON::JSON(const JSON& m) {
+	m_Root = m.m_Root->copy();
+}
+
+JSON::~JSON() {
+	if (m_Root != nullptr) {
+		delete m_Root;
+	}
+}
+
+JElement* JSON::operator[](std::string key) {
+	JObject* o = dynamic_cast<JObject*>(m_Root);
+	if (o != nullptr) {
+		auto it = o->m_Elements.find(key);
+		if (it != o->m_Elements.end()) {
+			return it->second;
+		}
+	}
+
+	return nullptr;
+}
+
+JElement* get_from_node_path(json::JElement* element, const std::string& path, const std::string& separator) {
+	std::vector<std::string> tokens;
+
+	size_t index{ 0 };
+	size_t prevIndex{ 0 };
+
+	index = path.find(separator, prevIndex);
+	while (index != std::string::npos) {
+		tokens.push_back(path.substr(prevIndex, index - prevIndex));
+		prevIndex += separator.size() + tokens[tokens.size() - 1].size();
+		index = path.find(separator, prevIndex);
+	}
+
+	tokens.push_back(path.substr(prevIndex));
+
+	JElement* current{ element };
+	for (auto& a : tokens) {
+		int arrIndex{ -1 };
+		JArray* arr = current->as_array();
+		if (arr && utility::str2int(arrIndex, a.c_str())) {
+			if (arrIndex < 0 || arr->size() <= arrIndex) {
+				return nullptr;
+			}
+
+			current = (*arr)[arrIndex];
+			continue;
+		}
+
+		JObject* obj = current->as_object();
+		if (obj && obj->contains(a)) {
+			current = (*obj)[a];
+			continue;
+		}
+
+		return nullptr;
+	}
+
+	return current;
+}
+
+JElement* JSON::at_path(const std::string& path, const std::string& separator) {
+	return get_from_node_path(m_Root, path, separator);
+}
+
+const JElement* json::JSON::at_path(const std::string& path, const std::string& separator) const {
+	return get_from_node_path(m_Root, path, separator);
+}
+
+void json::JSON::take_ownership_of(JSON&& json)
+{
+	m_Root = json.m_Root;
+	json.m_Root = nullptr;
+}
+
+bool JSON::operator!=(const JSON& other) const {
+	return !(*this == other);
+}
+
+bool JSON::operator==(const JSON& other) const {
+	std::string thisString = to_string(false);
+	std::string otherString = other.to_string(false);
+	return  thisString == otherString;
+}
+
+std::string JSON::to_string(bool prettyPrint) const {
+	if (m_Root == nullptr) {
+		return "";
+	}
+
+	return m_Root->to_string(prettyPrint, 1);
+}
+
+bool JSON::is_valid() const {
+	return m_Root != nullptr;
+}
+
