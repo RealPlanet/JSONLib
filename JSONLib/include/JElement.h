@@ -1,5 +1,9 @@
 #pragma once
 
+#ifndef _H_JELEMENT_
+#define _H_JELEMENT_
+
+#include <memory>
 #include <string>
 
 namespace json
@@ -7,15 +11,16 @@ namespace json
 	class JValue;
 	class JObject;
 	class JArray;
+	class JElement;
+
+	using JElementPtr = std::unique_ptr<JElement>;
 
 	class JElement
 	{
 	public:
-		JElement() = default;
 		virtual ~JElement() = default;
-
 		virtual std::string to_string(bool prettyPrint = false, int indentLevel = 0) const = 0;
-		virtual JElement* copy() const = 0;
+		virtual JElementPtr copy() const = 0;
 
 		JArray* as_array();
 		const JArray* as_array() const;
@@ -32,4 +37,6 @@ namespace json
 		operator JValue* ();
 		operator const JValue* () const;
 	};
-}
+} // namespace json
+
+#endif // !_H_JELEMENT_

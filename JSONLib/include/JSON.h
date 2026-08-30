@@ -1,35 +1,49 @@
 #pragma once
-
+#include "JArray.h"
+#include "JElement.h"
+#include "JObject.h"
+#include "JValue.h"
+#include <memory>
 #include <string>
 
-#include "JElement.h"
-#include "JValue.h"
-#include "JArray.h"
-#include "JObject.h"
-
-namespace json {
-
-	class JElement;
-	class JSON {
+namespace json
+{
+	class JSON
+	{
 	private:
-		JElement* m_Root{nullptr};
+		std::unique_ptr<JElement> m_Root;
 
 	public:
 		JSON() = default;
-		JSON(JElement* root) : m_Root{ root } {}
-		JSON(JSON&& m) noexcept;
+		explicit JSON(std::unique_ptr<JElement> root)
+			: m_Root(std::move(root))
+		{
+		}
+
+		JSON(JSON&&) noexcept = default;
+		JSON& operator=(JSON&&) noexcept = default;
 		JSON(const JSON& m);
-		virtual ~JSON();
+		JSON& operator=(const JSON& m);
+		~JSON() = default;
+
+		bool is_valid() const;
+		bool is_object() const;
+		bool is_array() const;
+
+		JObject& as_object();
+		const JObject& as_object() const;
+		JArray& as_array();
+		const JArray& as_array() const;
 
 		std::string to_string(bool prettyPrint = false) const;
-		bool		is_valid() const;
 
-		JElement* operator[](std::string key);
 		JElement* at_path(const std::string& path, const std::string& separator = "///");
 		const JElement* at_path(const std::string& path, const std::string& separator = "///") const;
-		void take_ownership_of(JSON&& json);
 
+		// Operators
 		bool operator==(const JSON& other) const;
 		bool operator!=(const JSON& other) const;
+		JElement* operator[](std::string key);
 	};
-}
+
+} // namespace json

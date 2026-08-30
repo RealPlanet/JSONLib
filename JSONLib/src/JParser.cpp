@@ -1,18 +1,25 @@
 ﻿#include "JParser.h"
-#include "JUtility.h"
-#include "JSON.h"
 
-#include <fstream>
 #include <cassert>
+#include <cstring>
 #include <cuchar>
+#include <fstream>
+#include <limits>
+#include <stdexcept>
+
+#include "JSON.h"
+#include "JUtility.h"
 
 using namespace json;
 
 size_t JParser::MaxDepth{ 500 };
 
-void JParser::DataIterator::skip_wspace() {
-	while (is_valid()) {
-		if (!iswspace(peek())) {
+void JParser::DataIterator::skip_wspace()
+{
+	while (is_valid())
+	{
+		if (!iswspace(peek()))
+		{
 			return;
 		}
 
@@ -20,30 +27,35 @@ void JParser::DataIterator::skip_wspace() {
 	}
 }
 
-JSON JParser::from_text(const std::string& text) {
+JSON JParser::from_text(const std::string& text)
+{
 	return from_text(text, nullptr);
 }
 
-JSON JParser::from_text(const std::string& text, std::vector<std::string>* errors) {
-
+JSON JParser::from_text(const std::string& text, std::vector<std::string>* errors)
+{
 	std::span<const uint8_t> bytes{ reinterpret_cast<const uint8_t*>(text.data()), text.size() };
 	DataIterator it{ bytes };
 	return from_iterator(it, errors);
 }
 
-JSON JParser::from_file(const std::string& path) {
+JSON JParser::from_file(const std::string& path)
+{
 	return from_file(path, nullptr);
 }
 
-JSON json::JParser::from_stream(std::istream& stream) {
+JSON json::JParser::from_stream(std::istream& stream)
+{
 	return from_stream(stream, nullptr);
 }
 
-JSON json::JParser::from_memory(std::vector<uint8_t>& stream) {
+JSON json::JParser::from_memory(std::vector<uint8_t>& stream)
+{
 	return from_memory(stream, nullptr);
 }
 
-JSON JParser::from_file(const std::string& path, std::vector<std::string>* errors) {
+JSON JParser::from_file(const std::string& path, std::vector<std::string>* errors)
+{
 	std::ifstream file;
 	file.open(path);
 	JSON json = from_stream(file, errors);
@@ -51,18 +63,21 @@ JSON JParser::from_file(const std::string& path, std::vector<std::string>* error
 	return json;
 }
 
-JSON JParser::from_stream(std::istream& stream, std::vector<std::string>* errors) {
+JSON JParser::from_stream(std::istream& stream, std::vector<std::string>* errors)
+{
 	stream.ignore(std::numeric_limits<std::streamsize>::max());
 	const size_t byte_count = static_cast<size_t>(stream.gcount());
-	stream.clear();   //  Since ignore will have set eof.
+	stream.clear(); //  Since ignore will have set eof.
 	stream.seekg(0, std::ios_base::beg);
 
-	if (byte_count == 0) {
-		if (errors) {
+	if (byte_count == 0)
+	{
+		if (errors)
+		{
 			errors->push_back(get_err_template(ErrType::ExpectedData));
 		}
-		
-		return nullptr;
+
+		return JSON{};
 	}
 
 	std::vector<uint8_t> data;
@@ -74,7 +89,8 @@ JSON JParser::from_stream(std::istream& stream, std::vector<std::string>* errors
 	return from_iterator(it, errors);
 }
 
-JSON json::JParser::from_memory(std::vector<uint8_t>& stream, std::vector<std::string>* errors) {
+JSON json::JParser::from_memory(std::vector<uint8_t>& stream, std::vector<std::string>* errors)
+{
 	DataIterator it{ stream };
 	return from_iterator(it, nullptr);
 }
@@ -84,54 +100,57 @@ JSON json::JParser::from_iterator(DataIterator& it, std::vector<std::string>* er
 	JParser p;
 	auto element = p.parse_json_value(it);
 	it.skip_wspace();
-	if (it.offset != it.data.size() && p.m_Errors.size() == 0) {
+	if (it.offset != it.data.size() && p.m_Errors.size() == 0)
+	{
 		p.build_error(JParser::LeftoverCharactersInData, it);
-		delete element;
-		element = nullptr;
+		element.reset();
 	}
 
-	if (errors) {
+	if (errors)
+	{
 		*errors = p.m_Errors;
 	}
 
 #ifdef _DEBUG
-	if (p.m_Errors.size() != 0) {
+	if (p.m_Errors.size() != 0)
+	{
 		assert(element == nullptr);
 	}
 #endif // DEBUG
 
-	return JSON{ element };
+	return JSON{ std::move(element) };
 }
 
-std::vector<std::string>& JParser::get_errors() {
+std::vector<std::string>& JParser::get_errors()
+{
 	return m_Errors;
 }
 
-void JParser::clear_errors() {
+void JParser::clear_errors()
+{
 	m_Errors.clear();
 }
 
-JElement* JParser::parse_json_value(DataIterator& it) {
-	while (it.is_valid()) {
+std::unique_ptr<JElement> JParser::parse_json_value(DataIterator& it)
+{
+	while (it.is_valid())
+	{
 		it.skip_wspace();
 		switch (it.peek())
 		{
-		case '[':
-		{
+		case '[': {
 			// Parse array
-			JElement* result = parse_json_array(it);
+			auto result = parse_json_array(it);
 			m_Depth--;
 			return result;
 		}
-		case '{':
-		{
+		case '{': {
 			// Parse object
-			JElement* result = parse_json_object(it);
+			auto result = parse_json_object(it);
 			m_Depth--;
 			return result;
 		}
-		case '"':
-		{
+		case '"': {
 			// Parse string
 			std::string s;
 			int result = parse_string(it, s);
@@ -150,20 +169,18 @@ JElement* JParser::parse_json_value(DataIterator& it) {
 		case '7':
 		case '8':
 		case '9':
-		case '-':
-		{
+		case '-': {
 			// Parse number
 			return parse_number(it);
 		}
 		case 't':
-		case 'f':
-		{
+		case 'f': {
 			return parse_boolean(it);
 		}
-		case 'n':
-		{
+		case 'n': {
 			const char* ptr = reinterpret_cast<const char*>(&it.data[it.offset]);
-			if (strncmp(ptr, "null", 4) == 0) {
+			if (strncmp(ptr, "null", 4) == 0)
+			{
 				it.offset += 4;
 				return JValue::create_null_value();
 			}
@@ -179,39 +196,45 @@ JElement* JParser::parse_json_value(DataIterator& it) {
 		}
 	}
 
-	if (it.offset == it.data.size() && m_Errors.size() == 0) {
+	if (it.offset == it.data.size() && m_Errors.size() == 0)
+	{
 		build_error(JParser::UnexpectedEOF, it);
 	}
 
 	return nullptr;
 }
 
-JElement* JParser::parse_json_array(DataIterator& it) {
-	if (m_Depth >= JParser::MaxDepth) {
+std::unique_ptr<JElement> JParser::parse_json_array(DataIterator& it)
+{
+	if (m_Depth >= JParser::MaxDepth)
+	{
 		build_error(JParser::MaxJSONDepthReached, it);
 		return nullptr;
 	}
 
 	m_Depth++;
-	if (it.peek() != '[') {
+	if (it.peek() != '[')
+	{
 		build_error(JParser::ExpectedStartOfArray, it);
 		return nullptr;
 	}
 
 	it.read1();
 	std::unique_ptr<JArray> result = std::make_unique<JArray>();
-	while (it.is_valid() && it.peek() != ']') {
-
+	while (it.is_valid() && it.peek() != ']')
+	{
 		it.skip_wspace();
-		JElement* val = parse_json_value(it);
-		if (!val) {
+		auto val = parse_json_value(it);
+		if (!val)
+		{
 			return nullptr;
 		}
 
-		result->push_back(val);
+		result->push_back(std::move(val));
 
 		it.skip_wspace();
-		if (it.peek() != ',') {
+		if (it.peek() != ',')
+		{
 			break;
 		}
 
@@ -220,31 +243,36 @@ JElement* JParser::parse_json_array(DataIterator& it) {
 		size_t last_comma_index = it.offset;
 		it.skip_wspace();
 
-		if (it.peek() == ']') {
+		if (it.peek() == ']')
+		{
 			build_error(JParser::UnexpectedComma, it);
 			return nullptr;
 		}
 	}
 
 	it.skip_wspace();
-	if (it.peek() != ']') {
+	if (it.peek() != ']')
+	{
 		build_error(JParser::ExpectedEndOfArray, it);
 		return nullptr;
 	}
 	it.read1();
 
-	return result.release();
+	return result;
 }
 
-JElement* JParser::parse_json_object(DataIterator& it) {
-	if (m_Depth >= JParser::MaxDepth) {
+std::unique_ptr<JElement> JParser::parse_json_object(DataIterator& it)
+{
+	if (m_Depth >= JParser::MaxDepth)
+	{
 		build_error(JParser::MaxJSONDepthReached, it);
 		return nullptr;
 	}
 
 	m_Depth++;
 
-	if (it.peek() != '{') {
+	if (it.peek() != '{')
+	{
 		build_error(JParser::ExpectedStartOfObject, it);
 		return nullptr;
 	}
@@ -255,139 +283,162 @@ JElement* JParser::parse_json_object(DataIterator& it) {
 	std::unique_ptr<JObject> result = std::make_unique<JObject>();
 	bool has_read_comma = false;
 	size_t last_comma_index = -1;
-	while (it.is_valid() && it.peek() != '}') {
+	while (it.is_valid() && it.peek() != '}')
+	{
 		it.skip_wspace();
 		auto tuple = parse_member(it);
-		auto ptr = std::get<1>(tuple);
-		if (!ptr) {
+		auto& ptr = std::get<1>(tuple);
+		if (!ptr)
+		{
 			return nullptr;
 		}
 
 		has_read_comma = false;
-		result->insert(std::get<0>(tuple), ptr);
+		result->insert(std::get<0>(tuple), std::move(ptr));
 		it.skip_wspace();
 
-		if (it.peek() != ',') {
+		if (it.peek() != ',')
+		{
 			break;
 		}
-
 
 		last_comma_index = it.offset;
 		has_read_comma = true;
 		it.read1();
 	}
 
-	if (has_read_comma) {
+	if (has_read_comma)
+	{
 		it.offset = last_comma_index;
 		build_error(JParser::UnexpectedComma, it);
 		return nullptr;
 	}
 
 	it.skip_wspace();
-	if (it.peek() != '}') {
+	if (it.peek() != '}')
+	{
 		build_error(JParser::ExpectedEndOfObject, it);
 		return nullptr;
 	}
 	it.read1();
 
-	return result.release();
+	return result;
 }
 
-JElement* JParser::parse_boolean(DataIterator& it) {
+std::unique_ptr<JElement> JParser::parse_boolean(DataIterator& it)
+{
 	std::string boolValue;
 
 	it.skip_wspace();
-	if (it.peek() == 't') {
+	if (it.peek() == 't')
+	{
 		const char* ptr = reinterpret_cast<const char*>(&it.data[it.offset]);
-		if (strncmp(ptr, "true", 4) == 0) {
+		if (strncmp(ptr, "true", 4) == 0)
+		{
 			it.offset += 4;
 			return JValue::create_boolean_value(true);
 		}
 	}
 
-	if (it.peek() == 'f') {
+	if (it.peek() == 'f')
+	{
 		const char* ptr = reinterpret_cast<const char*>(&it.data[it.offset]);
-		if (strncmp(ptr, "false", 5) == 0) {
+		if (strncmp(ptr, "false", 5) == 0)
+		{
 			it.offset += 5;
 			return JValue::create_boolean_value(false);
 		}
-
 	}
 
 	build_error(JParser::ExpectedBool, it);
 	return nullptr;
 }
-JElement* JParser::parse_number(DataIterator& it) {
+std::unique_ptr<JElement> JParser::parse_number(DataIterator& it)
+{
 	it.skip_wspace();
 
 	std::string number = "";
 	bool isFractional = false;
 
 	char firstChar = it.peek();
-	if (!utility::isdigit(firstChar)) {
-		if (firstChar != '-') {
+	if (!utility::isdigit(firstChar))
+	{
+		if (firstChar != '-')
+		{
 			build_error(JParser::ErrType::NotANumber, it);
 			return nullptr;
 		}
 
 		number += it.read1();
 
-		if (!utility::isdigit(it.peek())) {
+		if (!utility::isdigit(it.peek()))
+		{
 			build_error(JParser::ErrType::NotANumber, it);
 			return nullptr;
 		}
 	}
 
-	while (utility::isdigit(it.peek())) {
+	while (utility::isdigit(it.peek()))
+	{
 		number += it.read1();
 	}
 
 	// Number has fractionalpart
-	if (it.peek() == '.') {
+	if (it.peek() == '.')
+	{
 		isFractional = true;
 		number += it.read1();
-		if (!utility::isdigit(it.peek())) {
+		if (!utility::isdigit(it.peek()))
+		{
 			build_error(JParser::ErrType::NumberCannotEndWithDecimalSeparator, it);
 			return nullptr;
 		}
 
-		while (utility::isdigit(it.peek())) {
+		while (utility::isdigit(it.peek()))
+		{
 			number += it.read1();
 		}
 	}
 
 	// Number has exponent part
-	if (it.peek() == 'e' || it.peek() == 'E') {
+	if (it.peek() == 'e' || it.peek() == 'E')
+	{
 		number += it.read1();
 		firstChar = it.peek();
-		if (!utility::isdigit(firstChar)) {
-
-			if (firstChar != '+' && firstChar != '-') {
+		if (!utility::isdigit(firstChar))
+		{
+			if (firstChar != '+' && firstChar != '-')
+			{
 				build_error(JParser::ErrType::NumberCannotEndWithExponentialCharacter, it);
 				return nullptr;
 			}
 
 			number += it.read1();
 
-			if (!utility::isdigit(it.peek())) {
+			if (!utility::isdigit(it.peek()))
+			{
 				build_error(JParser::ErrType::NumberCannotEndWithSign, it);
 				return nullptr;
 			}
 		}
 
-		while (utility::isdigit(it.peek())) {
+		while (utility::isdigit(it.peek()))
+		{
 			number += it.read1();
 		}
 	}
 
 	auto error = is_valid_json_number(number);
-	if (error != JParser::ErrType::NoError) {
+	if (error != JParser::ErrType::NoError)
+	{
 		build_error(error, it);
 		return nullptr;
 	}
 
-	try {
-		if (isFractional) {
+	try
+	{
+		if (isFractional)
+		{
 			return JValue::create_number_value(std::stod(number));
 		}
 
@@ -399,16 +450,19 @@ JElement* JParser::parse_number(DataIterator& it) {
 	}
 }
 
-JParser::ErrType JParser::is_valid_json_number(const std::string& value) {
+JParser::ErrType JParser::is_valid_json_number(const std::string& value)
+{
 	size_t strLen = value.size();
-	if (strLen == 0) {
+	if (strLen == 0)
+	{
 		return JParser::ErrType::NotANumber;
 	}
 
-
-	if (strLen == 1) {
+	if (strLen == 1)
+	{
 		// Number can only contain these characters but not start with these
-		if (value[0] == '.' || value[0] == '-' || value[0] == 'e') {
+		if (value[0] == '.' || value[0] == '-' || value[0] == 'e')
+		{
 			return JParser::ErrType::NotANumber;
 		}
 	}
@@ -418,8 +472,10 @@ JParser::ErrType JParser::is_valid_json_number(const std::string& value) {
 
 	// If value is zero and there are more characters in the number
 	// then it is an error
-	if (value[offset] == '0') {
-		if (offset + 1 < value.size()) {
+	if (value[offset] == '0')
+	{
+		if (offset + 1 < value.size())
+		{
 			if (value[offset + 1] != '.' && value[offset + 1] != 'e')
 				return JParser::ErrType::NumberCannotStartWithZero;
 		}
@@ -428,7 +484,8 @@ JParser::ErrType JParser::is_valid_json_number(const std::string& value) {
 	return JParser::ErrType::NoError;
 }
 
-bool JParser::get_escaped_character(DataIterator& it, std::string& escapedCharacters) {
+bool JParser::get_escaped_character(DataIterator& it, std::string& escapedCharacters)
+{
 	escapedCharacters = "";
 	it.read1(); // Consume escape char
 	switch (it.peek())
@@ -457,16 +514,17 @@ bool JParser::get_escaped_character(DataIterator& it, std::string& escapedCharac
 	case '"':
 		it.read1();
 		return "\"";
-	case 'u':
-	{
+	case 'u': {
 		it.offset++;
 		size_t startingCodepointPosition = it.offset;
 
 		int i{ 0 };
 		char hex[5]{ 0 };
 
-		for (int j{ 0 }; j < 4; j++) {
-			if (!add_if_hex(hex, i++, it.peek())) {
+		for (int j{ 0 }; j < 4; j++)
+		{
+			if (!add_if_hex(hex, i++, it.peek()))
+			{
 				build_error(JParser::ExpectedUTFCharacter, it);
 				return false;
 			}
@@ -481,12 +539,15 @@ bool JParser::get_escaped_character(DataIterator& it, std::string& escapedCharac
 
 		std::mbstate_t state{};
 		auto len = std::c32rtomb(hex, c, &state);
-		if (len == std::size_t(-1)) {
+		if (len == std::size_t(-1))
+		{
 			len = std::c32rtomb(hex, L'\uFFFF', &state);
-			if (len == std::size_t(-1)) {
-				throw std::exception("UTF ERROR");
+			if (len == std::size_t(-1))
+			{
+				throw std::runtime_error("UTF ERROR");
 			}
-			//build_error(Parser::CodepointNotRecognized, it, startingCodepointPosition);
+			// build_error(Parser::CodepointNotRecognized, it,
+			// startingCodepointPosition);
 		}
 
 		// Null terminate it and send it back up
@@ -500,19 +561,16 @@ bool JParser::get_escaped_character(DataIterator& it, std::string& escapedCharac
 	return false;
 }
 
-bool JParser::add_if_hex(char* arr, int index, char c) {
-	if (c < 0) {
+bool JParser::add_if_hex(char* arr, int index, char c)
+{
+	if (c < 0)
+	{
 		// Invalid data
 		return false;
 	}
 
-	if (c != 'A' && c != 'a' &&
-		c != 'B' && c != 'b' &&
-		c != 'C' && c != 'c' &&
-		c != 'D' && c != 'd' &&
-		c != 'E' && c != 'e' &&
-		c != 'F' && c != 'f' &&
-		!std::isdigit(c))
+	if (c != 'A' && c != 'a' && c != 'B' && c != 'b' && c != 'C' && c != 'c' && c != 'D' && c != 'd' && c != 'E' &&
+		c != 'e' && c != 'F' && c != 'f' && !std::isdigit(c))
 	{
 		return false;
 	}
@@ -521,40 +579,48 @@ bool JParser::add_if_hex(char* arr, int index, char c) {
 	return true;
 }
 
-int JParser::parse_string(DataIterator& it, std::string& result) {
-	if (it.peek() != '"') {
+int JParser::parse_string(DataIterator& it, std::string& result)
+{
+	if (it.peek() != '"')
+	{
 		build_error(JParser::ExpectedQuotes, it);
 		return -1;
 	}
 	it.read1();
 
-	while (it.peek() != '"') {
-
-		if (!it.is_valid()) {
+	while (it.peek() != '"')
+	{
+		if (!it.is_valid())
+		{
 			build_error(JParser::UnexpectedEOF, it);
 			return -1;
 		}
 
-		if (it.peek() == '\\') {
+		if (it.peek() == '\\')
+		{
 			std::string escapedCharacters;
-			if (!get_escaped_character(it, escapedCharacters)) {
+			if (!get_escaped_character(it, escapedCharacters))
+			{
 				return -1;
 			}
 			result += escapedCharacters;
 			continue;
 		}
 
-		if (it.peek() == 0) {
+		if (it.peek() == 0)
+		{
 			build_error(JParser::UnexpectedCharTerminator, it);
 			return -1;
 		}
 
-		if (it.peek() == '\n' || it.peek() == '\r') {
+		if (it.peek() == '\n' || it.peek() == '\r')
+		{
 			build_error(JParser::UnexpectedNewline, it);
 			return -1;
 		}
 
-		if (it.peek() == '\t') {
+		if (it.peek() == '\t')
+		{
 			build_error(JParser::UnexpectedTabCharacter, it);
 			return -1;
 		}
@@ -562,7 +628,8 @@ int JParser::parse_string(DataIterator& it, std::string& result) {
 		result += it.read1();
 	}
 
-	if (it.peek() != '"') {
+	if (it.peek() != '"')
+	{
 		build_error(JParser::ExpectedQuotes, it);
 		return -1;
 	}
@@ -571,16 +638,18 @@ int JParser::parse_string(DataIterator& it, std::string& result) {
 	return 0;
 }
 
-std::tuple<std::string, JElement*> JParser::parse_member(DataIterator& it) {
-
+std::tuple<std::string, std::unique_ptr<JElement>> JParser::parse_member(DataIterator& it)
+{
 	std::string memberName;
 	int result = parse_string(it, memberName);
-	if (result != 0) {
+	if (result != 0)
+	{
 		return std::make_tuple("", nullptr);
 	}
 
 	it.skip_wspace();
-	if (it.peek() != ':') {
+	if (it.peek() != ':')
+	{
 		build_error(JParser::ExpectedColonMarker, it);
 		return std::make_tuple(memberName, nullptr);
 	}
@@ -589,7 +658,8 @@ std::tuple<std::string, JElement*> JParser::parse_member(DataIterator& it) {
 	return std::make_tuple(memberName, parse_json_value(it));
 }
 
-void JParser::build_error(ErrType type, DataIterator& data) {
+void JParser::build_error(ErrType type, DataIterator& data)
+{
 	std::string templ = get_err_template(type);
 	size_t charIndex = data.offset;
 
@@ -630,8 +700,10 @@ void JParser::build_error(ErrType type, DataIterator& data) {
 	m_Errors.push_back(templ + preview);
 }
 
-std::string JParser::get_err_template(ErrType type) {
-	switch (type) {
+std::string JParser::get_err_template(ErrType type)
+{
+	switch (type)
+	{
 	default:
 	case ErrType::Unknown:
 		return "Unexpected error at '%d':\n";
@@ -640,7 +712,8 @@ std::string JParser::get_err_template(ErrType type) {
 	case ErrType::ExpectedNull:
 		return "Expected 'null' keyword at '%d':\n";
 	case ErrType::ExpectedBool:
-		return "Expected 'true' or 'false' keyword while parsing boolean at '%d':\n";
+		return "Expected 'true' or 'false' keyword while parsing boolean at "
+			"'%d':\n";
 	case ErrType::UnexpectedCharacterInFile:
 		return "Unexpected character at '%d':\n";
 	case ErrType::UnexpectedEOF:
@@ -652,7 +725,8 @@ std::string JParser::get_err_template(ErrType type) {
 	case ErrType::UnexpectedTabCharacter:
 		return "Unexpected unexcaped TAB character at '%d':\n";
 	case ErrType::UnexpectedComma:
-		return "Unexpected trailing comma (',') at '%d' (Did you forget a value?):\n";
+		return "Unexpected trailing comma (',') at '%d' (Did you forget a "
+			"value?):\n";
 	case ErrType::ExpectedStartOfArray:
 		return "Unexpected start of JArray at '%d':\n";
 	case ErrType::ExpectedStartOfObject:
@@ -682,8 +756,7 @@ std::string JParser::get_err_template(ErrType type) {
 	case ErrType::MaxJSONDepthReached:
 		return "Max JSON depth of '%d' reached at '%d'";
 	case ErrType::UnexpectedEscapeCharacter:
-		return "Unexpected escape character at '%d', it is not a valid escape character!\n";
+		return "Unexpected escape character at '%d', it is not a valid escape "
+			"character!\n";
 	}
 }
-
-

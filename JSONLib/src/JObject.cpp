@@ -1,49 +1,71 @@
 #include "JObject.h"
 #include "JUtility.h"
-
 using namespace json;
 
-JObject::~JObject() {
-	for (auto& ptr : m_Elements) {
-		delete ptr.second;
-	}
-
-	m_Elements.clear();
+void JObject::insert(const std::string& name, JElementPtr value)
+{
+	m_Elements[name] = std::move(value);
 }
 
-void JObject::insert(const std::string& name, JElement* value) {
-	m_Elements.insert(std::make_pair(name, value));
-}
-
-bool JObject::contains(const std::string& key){
+bool JObject::contains(const std::string& key) const
+{
 	return m_Elements.find(key) != m_Elements.end();
 }
 
-std::string JObject::to_string(bool prettyPrint /*= false*/, int indentLevel /*= 0*/) const {
+bool JObject::contains_object(const std::string& key) const
+{
+	auto it = m_Elements.find(key);
+	if (it == m_Elements.end())
+	{
+		return false;
+	}
+
+	return it->second->as_object() != nullptr;
+}
+
+std::string JObject::to_string(bool prettyPrint, int indentLevel) const
+{
 	std::string indentation = utility::calculate_indentation(prettyPrint, indentLevel);
 	std::string objString = prettyPrint ? "{\n" : "{";
-	for (auto i{ m_Elements.begin() }; i != m_Elements.end(); i++) {
+	for (auto i = m_Elements.begin(); i != m_Elements.end(); ++i)
+	{
 		objString += indentation + "\"" + i->first + "\" : " + i->second->to_string(prettyPrint, indentLevel + 1);
-
-		if (std::next(i) != m_Elements.end()) {
+		if (std::next(i) != m_Elements.end())
+		{
 			objString += ",";
 		}
 
-
-		if (prettyPrint) {
+		if (prettyPrint)
+		{
 			objString += "\n";
 		}
 	}
 
-	objString += utility::calculate_indentation(prettyPrint, indentLevel - 1) + "}";
-	return objString;
+	return objString + utility::calculate_indentation(prettyPrint, indentLevel - 1) + "}";
 }
 
-JElement* JObject::copy() const {
-	JObject* c = new JObject();
-	for (auto p : m_Elements) {
+JElementPtr JObject::copy() const
+{
+	auto c = std::make_unique<JObject>();
+	for (const auto& p : m_Elements)
+	{
 		c->insert(p.first, p.second->copy());
 	}
 
 	return c;
+}
+
+JElementPtr& JObject::operator[](const std::string& key)
+{
+	return m_Elements[key];
+}
+
+const JElement* JObject::at(const std::string& key) const
+{
+	return m_Elements.at(key).get();
+}
+
+const JObject* JObject::object_at(const std::string& key) const
+{
+	return m_Elements.at(key)->as_object();
 }
