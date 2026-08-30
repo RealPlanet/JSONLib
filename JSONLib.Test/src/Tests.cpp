@@ -145,10 +145,11 @@ bool json::test::can_add_to_json()
 	json::JSON b = json::JParser::from_text(finalStruct);
 
 	auto newArray = new json::JArray();
-	a["b"]->as_array()->push_back(newArray);
-
 	newArray->push_back(json::JValue::create_str_value("added"));
 	newArray->push_back(json::JValue::create_boolean_value(true));
+
+	a["b"]->as_array()->push_back(std::unique_ptr<json::JArray>(newArray));
+
 	std::cout << a.to_string() << "\n";
 	std::cout << originalJson.to_string() << "\n";
 
