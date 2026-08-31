@@ -23,6 +23,17 @@ bool JObject::contains_object(const std::string& key) const
 	return it->second->as_object() != nullptr;
 }
 
+bool json::JObject::contains_array(const std::string& key) const
+{
+	auto it = m_Elements.find(key);
+	if (it == m_Elements.end())
+	{
+		return false;
+	}
+
+	return it->second->as_array() != nullptr;
+}
+
 std::string JObject::to_string(bool prettyPrint, int indentLevel) const
 {
 	std::string indentation = utility::calculate_indentation(prettyPrint, indentLevel);

@@ -24,7 +24,8 @@ namespace json
 
 		void insert(const std::string& name, JElementPtr value);
 		bool contains(const std::string& key) const;
-		bool contains_object(const std::string& object) const;
+		bool contains_object(const std::string& key) const;
+		bool contains_array(const std::string& key) const;
 
 		size_t size() const
 		{
