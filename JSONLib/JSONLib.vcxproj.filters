@@ -15,6 +15,7 @@
     </ClCompile>
     <ClCompile Include="src\JParser.cpp" />
     <ClCompile Include="src\json.cpp" />
+    <ClCompile Include="src\JSerialization.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\JArray.h">
@@ -34,6 +35,7 @@
     </ClInclude>
     <ClInclude Include="include\JParser.h" />
     <ClInclude Include="include\json.h" />
+    <ClInclude Include="include\JSerialization.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Data">

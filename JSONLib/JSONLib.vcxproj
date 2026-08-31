@@ -136,6 +136,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\JSerialization.cpp" />
     <ClCompile Include="src\JElement.cpp" />
     <ClCompile Include="src\json.cpp" />
     <ClCompile Include="src\JArray.cpp" />
@@ -146,6 +147,7 @@
   <ItemGroup>
     <ClInclude Include="include\JElement.h" />
     <ClInclude Include="include\JParser.h" />
+    <ClInclude Include="include\JSerialization.h" />
     <ClInclude Include="include\JUtility.h" />
     <ClInclude Include="include\json.h" />
     <ClInclude Include="include\JArray.h" />
