@@ -52,7 +52,7 @@ std::string JObject::to_string(bool prettyPrint, int indentLevel) const
 		}
 	}
 
-	return objString + utility::calculate_indentation(prettyPrint, indentLevel - 1) + "}";
+	return objString + "}";
 }
 
 JElementPtr JObject::copy() const
